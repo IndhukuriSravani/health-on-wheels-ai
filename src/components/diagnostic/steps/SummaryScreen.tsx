@@ -4,8 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { FileText, Download, UserPlus, LogOut, AlertTriangle, CheckCircle } from 'lucide-react';
+import { FileText, Download, UserPlus, LogOut, AlertTriangle, CheckCircle, FileSpreadsheet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ECGGraph } from '../ECGGraph';
+import { generatePDFReport, generateCSVReport } from '@/utils/pdfGenerator';
 
 export const SummaryScreen: React.FC = () => {
   const { currentVisit, updateHealthSummary, saveVisit, createNewVisit } = useDiagnostic();
@@ -77,10 +79,84 @@ export const SummaryScreen: React.FC = () => {
 
     const patientName = currentVisit.patient.fullName;
     const age = currentVisit.patient.age;
+    const gender = currentVisit.patient.gender;
     const riskScore = calculateRiskScore();
     const riskLevel = getRiskLevel(riskScore);
 
-    return `Patient ${patientName}, ${age} years old, presents with an overall health risk score of ${riskScore}/100 (${riskLevel} risk). Key findings include cardiovascular parameters within acceptable ranges, with recommendations for continued monitoring and lifestyle modifications as indicated by the diagnostic assessments.`;
+    let summary = `Patient ${patientName}, ${age}-year-old ${gender.toLowerCase()}, underwent comprehensive health assessment with overall risk score of ${riskScore}/100 (${riskLevel} risk). `;
+
+    // Add specific findings
+    const findings = [];
+
+    if (currentVisit.vitals) {
+      const { systolicBP, diastolicBP, heartRate, temperature, spO2 } = currentVisit.vitals;
+      if (systolicBP > 140 || diastolicBP > 90) {
+        findings.push('elevated blood pressure requiring monitoring');
+      } else if (systolicBP < 90) {
+        findings.push('low blood pressure noted');
+      } else {
+        findings.push('blood pressure within normal limits');
+      }
+
+      if (heartRate < 60) {
+        findings.push('bradycardia observed');
+      } else if (heartRate > 100) {
+        findings.push('tachycardia detected');
+      } else {
+        findings.push('heart rate normal');
+      }
+
+      if (spO2 < 95) {
+        findings.push('oxygen saturation below optimal levels');
+      }
+    }
+
+    if (currentVisit.bloodTest) {
+      const { bloodSugar, hdl, ldl, hemoglobin } = currentVisit.bloodTest;
+      if (bloodSugar > 126) {
+        findings.push('elevated glucose levels suggesting diabetes monitoring needed');
+      } else if (bloodSugar < 70) {
+        findings.push('low glucose levels detected');
+      }
+
+      if (hdl < 40) {
+        findings.push('low HDL cholesterol');
+      }
+      if (ldl > 160) {
+        findings.push('elevated LDL cholesterol');
+      }
+      if (hemoglobin < 12) {
+        findings.push('anemia indicators present');
+      }
+    }
+
+    if (currentVisit.bmi) {
+      if (currentVisit.bmi.category === 'Obese') {
+        findings.push('obesity requiring weight management intervention');
+      } else if (currentVisit.bmi.category === 'Overweight') {
+        findings.push('overweight status with lifestyle modification recommendations');
+      } else if (currentVisit.bmi.category === 'Underweight') {
+        findings.push('underweight status requiring nutritional assessment');
+      }
+    }
+
+    if (currentVisit.ecg) {
+      if (currentVisit.ecg.riskLevel === 'Critical') {
+        findings.push('critical ECG abnormalities requiring immediate cardiology consultation');
+      } else if (currentVisit.ecg.riskLevel === 'Abnormal') {
+        findings.push('ECG abnormalities noted for follow-up');
+      } else {
+        findings.push('ECG within normal parameters');
+      }
+    }
+
+    if (findings.length > 0) {
+      summary += `Key findings include: ${findings.join(', ')}. `;
+    }
+
+    summary += `Recommend regular monitoring and adherence to prescribed interventions. Follow-up assessment scheduled based on risk level and clinical presentation.`;
+
+    return summary;
   };
 
   const generateRecommendations = (): string[] => {
@@ -114,11 +190,40 @@ export const SummaryScreen: React.FC = () => {
     return alerts;
   };
 
-  const handleDownloadPDF = () => {
-    toast({
-      title: "PDF Report Generated",
-      description: "Comprehensive health report with QR code has been generated.",
-    });
+  const handleDownloadPDF = async () => {
+    if (!currentVisit) return;
+    
+    try {
+      await generatePDFReport(currentVisit);
+      toast({
+        title: "PDF Report Generated",
+        description: "Comprehensive health report has been downloaded successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF report. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDownloadCSV = () => {
+    if (!currentVisit) return;
+    
+    try {
+      generateCSVReport(currentVisit);
+      toast({
+        title: "CSV Report Generated",
+        description: "Health data exported to CSV format successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate CSV report. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleAddAnotherPatient = () => {
@@ -204,13 +309,22 @@ export const SummaryScreen: React.FC = () => {
         </Card>
       )}
 
+      {/* ECG Display */}
+      {currentVisit?.ecg && (
+        <ECGGraph ecgData={currentVisit.ecg} height={350} />
+      )}
+
       {/* Action Buttons */}
       <Card className="shadow-card">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Button onClick={handleDownloadPDF} className="flex items-center gap-2">
               <Download className="h-4 w-4" />
               Download PDF Report
+            </Button>
+            <Button variant="outline" onClick={handleDownloadCSV} className="flex items-center gap-2">
+              <FileSpreadsheet className="h-4 w-4" />
+              Export CSV Data
             </Button>
             <Button variant="outline" onClick={handleAddAnotherPatient} className="flex items-center gap-2">
               <UserPlus className="h-4 w-4" />

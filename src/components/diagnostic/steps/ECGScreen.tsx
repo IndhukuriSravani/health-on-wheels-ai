@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Activity, Heart, Zap, AlertTriangle, CheckCircle, Play } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { ECGGraph } from '../ECGGraph';
 
 export const ECGScreen: React.FC = () => {
   const { currentVisit, updateECG } = useDiagnostic();
@@ -316,68 +316,8 @@ export const ECGScreen: React.FC = () => {
       </div>
 
       {/* ECG Waveform Visualization */}
-      {(showSimulation || waveformData.length > 0) && (
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-primary" />
-              ECG Waveform
-            </CardTitle>
-            <CardDescription>
-              Simulated electrocardiogram trace (WHO standard 12-lead ECG format)
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={ecgChartData}>
-                  <CartesianGrid strokeDasharray="1 1" stroke="#e2e8f0" />
-                  <XAxis 
-                    dataKey="time" 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 10 }}
-                  />
-                  <YAxis 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 10 }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="amplitude" 
-                    stroke="#2563eb" 
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            
-            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-              <div className="text-center">
-                <div className="w-4 h-4 bg-blue-500 rounded mx-auto mb-1"></div>
-                <p>P Wave</p>
-                <p className="text-muted-foreground">Atrial depolarization</p>
-              </div>
-              <div className="text-center">
-                <div className="w-4 h-4 bg-red-500 rounded mx-auto mb-1"></div>
-                <p>QRS Complex</p>
-                <p className="text-muted-foreground">Ventricular depolarization</p>
-              </div>
-              <div className="text-center">
-                <div className="w-4 h-4 bg-green-500 rounded mx-auto mb-1"></div>
-                <p>T Wave</p>
-                <p className="text-muted-foreground">Ventricular repolarization</p>
-              </div>
-              <div className="text-center">
-                <div className="w-4 h-4 bg-yellow-500 rounded mx-auto mb-1"></div>
-                <p>QT Interval</p>
-                <p className="text-muted-foreground">Complete cardiac cycle</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {(showSimulation || waveformData.length > 0) && currentVisit?.ecg && (
+        <ECGGraph ecgData={currentVisit.ecg} height={350} />
       )}
 
       {/* WHO ECG Guidelines */}
